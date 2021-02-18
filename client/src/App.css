@@ -1,0 +1,122 @@
+.App {
+    margin:50px;
+    font-family: 'Open Sans', sans-serif;
+    font-weight: lighter;
+    margin-left: 100px;
+    margin-right: 100px;
+}
+
+body {
+    background-image: url('background.jpg');
+}
+
+
+
+header h1 {
+    text-transform: lowercase;
+}
+
+header h2 {
+    font-size:23px;
+}
+
+
+table {
+    background-color:white !important;
+    table-layout:fixed;
+} 
+
+header .navbar-brand:before {
+    content: url(watch.png);
+    height: 47px;
+    width: 51px;
+    padding-right: 15px;
+    vertical-align: text-bottom;
+  }
+
+td span {
+    margin-left:5px;
+    margin-right:5px;
+}
+
+table {
+    border: 2px solid #7AC1F7 !important;;
+    border-collapse: collapse;
+}
+
+.graphimg {
+    height: 210px;
+    background-image: url('graph.jpg');
+    background-repeat:no-repeat;
+    background-size: contain;
+    max-width: 345px  !important;
+}
+
+
+.table-bordered th, .table-bordered td {
+    border: none !important;
+    text-align: center; 
+    vertical-align: middle;
+}
+
+.table tr td {
+    padding: 1.5rem !important;
+}
+
+.app-jumbo {
+    background-color: #7AC1F7 !important;
+    color:white;
+    padding:15px !important;
+}
+
+.app-jumbo header{
+    margin-left:28px;
+    margin-top:10px;
+}
+
+.addbutton {
+    float:left;
+    text-align:left;
+}
+
+.deletebuttons {
+    float:right;
+    text-align:right;
+}
+
+.deletebuttons button {
+    margin-bottom:10px;
+}
+
+.th-ticker {
+    width: 100px;
+}
+.th-exchange {
+    width:150px;
+}
+.th-crypto {
+    width: 100px;
+}
+.th-track {
+    width:150px;
+}
+.th-icons {
+    width:230px;
+}
+
+.table-content-text{
+    font-size: 18px;
+}
+
+.tr-tracked {
+    background-color:lightgreen !important;
+}
+
+.tr-tracked .td-readonly {
+    background-color:lightgreen !important;
+}
+
+.td-readonly {
+    background-color: #ECECEC;
+}
+

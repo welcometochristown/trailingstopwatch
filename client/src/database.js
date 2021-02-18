@@ -9,11 +9,18 @@ export class database  {
             body:body
         });
 
-        return await fetch(url, {
-            method: action,
-            headers: headers,
-            body:body
-        });
+        try
+        {
+            return await fetch(url, {
+                method: action,
+                headers: headers,
+                body:body
+            });
+            
+        }catch(err) {
+            console.log(err);
+        }
+       
     }
 
     static async load() {
@@ -28,26 +35,85 @@ export class database  {
 
     }
 
-    static async get(ticker) {
-            
-        const url = 'http://' + window.location.hostname + ':7000/' + ticker;
+    static async delete(id) {
 
-        return await database.action(url, 'GET', {
+        const url = 'http://' + window.location.hostname + ':7000/' + id;
+
+        await database.action(url, 'DELETE', {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
         })
-        .then(res => res.json())
 
     }
 
-    static async save(obj) {
+    static async deleteTickers() {
+            
+        const url = 'http://' + window.location.hostname + ':7000/tickers';
+
+        await database.action(url, 'DELETE', {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+        })
+
+    }
+
+    static async deleteMarkets() {
+            
+        const url = 'http://' + window.location.hostname + ':7000/markets';
+
+        await database.action(url, 'DELETE', {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+        })
+
+    }
+
+    static async deleteAll() {
+            
+        const url = 'http://' + window.location.hostname + ':7000/all';
+
+        await database.action(url, 'DELETE', {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+        })
+
+    }
+
+    static async getPrice(body) {
+            
+        const url = 'http://' + window.location.hostname + ':7000/price';
+
+        return await database.action(url, 'POST', {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            JSON.stringify(body)
+        )
+        .then(res => res.json());
+
+    }
+
+    static async insert(obj) {
         const url = 'http://' + window.location.hostname + ':7000/';
 
-        await database.action(url, 'POST', {
+        return await database.action(url, 'PUT', {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
             JSON.stringify(obj)
-        );
+
+        ).then(res => res.json());
+    }
+
+    
+    static async update(obj) {
+        const url = 'http://' + window.location.hostname + ':7000/';
+
+        return await database.action(url, 'POST', {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            JSON.stringify(obj)
+        ).then(res => res.json());
     }
 }

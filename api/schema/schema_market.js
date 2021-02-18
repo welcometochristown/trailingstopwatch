@@ -2,9 +2,10 @@ const schema = {
     "ticker": String,
     "exchange" : String,
     "isCrypto" : Boolean,
-    "sl_price" : Number,
-    "trlng_sl_offset" : Number,
-    "track": Boolean
+    "price" : Number,
+    "highestprice" : Number,
+    "startingprice" : Number,
+    "timestamp" : String
 }
 
 module.exports = schema;
