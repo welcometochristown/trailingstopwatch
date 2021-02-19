@@ -109,6 +109,9 @@ function App() {
     }
 
     const addRow = () => {
+        if(rows.length>=10)
+            return;
+
         updateRows(r => {
             r.push(blankTicker());
             setEditingCopy({
@@ -492,7 +495,7 @@ function App() {
                     {content}
                 </tbody>
             </Table>
-            <div className="addbutton"><Button variant="primary" onClick={addRow}>Add</Button></div>
+            <div className="addbutton"><Button variant="primary" onClick={addRow} disabled={rows.length>=10 || editingCopy}>Add</Button></div>
             <div className="deletebuttons">
                 <div><Button variant="danger" onClick={deleteAllTickers}>Delete All Tickers</Button></div>
                 <div><Button variant="danger" onClick={deleteAllMarkets}>Delete All Market Values</Button></div>
