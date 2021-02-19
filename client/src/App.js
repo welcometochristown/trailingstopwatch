@@ -8,6 +8,9 @@ import Select from 'react-select';
 function App() {
 
     const [editingCopy, setEditingCopy] = useState(null);
+    const [isReloading, setIsReloading] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     const [rows, setRows] = useState({
       needsSaving : false,
       needsReloading : false,
@@ -38,19 +41,21 @@ function App() {
             var items = await database.load();
 
             for (var i in items) {
-                var item = items[i];
-
-                var m = await database.getPrice({ticker : item.ticker, exchange:item.exchange, isCrypto:item.isCrypto});
-
-                item.price = m.price;
-                item.startingprice = m.startingprice;
-                item.highestprice = m.highestprice;
-                item.timestamp = m.timestamp;
+               await fillPrice(items[i]);
             }
 
             return items;
         });
     };
+
+    const fillPrice = async(item) => {
+        var m = await database.getPrice({ticker : item.ticker, exchange:item.exchange, isCrypto:item.isCrypto});
+
+        item.price = m.price;
+        item.startingprice = m.startingprice;
+        item.highestprice = m.highestprice;
+        item.timestamp = m.timestamp;
+    }
 
     const save = async () => {
         await updateRowsAsync(async (r) => {
@@ -121,6 +126,12 @@ function App() {
         });
     }
 
+    const reloadData = async () => {
+        setIsReloading(true);
+        await database.reload();
+        setIsReloading(false);
+    }
+
     //Editable Handlers (editingCopy)
 
     const handleExchangeChange = (e, i) => {
@@ -183,10 +194,7 @@ function App() {
 
     const handleOnClickRefresh = async (e, i) => {
         updateRowsAsync(async (r) => {
-            var m = await database.getPrice({ticker : r[i].ticker, exchange:r[i].exchange, isCrypto:r[i].isCrypto});
-
-            r[i].price = m.price;
-            r[i].highestprice = m.highestprice;
+            fillPrice(r[i]);;
         });
     }
 
@@ -199,7 +207,6 @@ function App() {
     const format = (n, prefix, postfix, isNumeric=false) => {
         if(isNullOrUndefined(n))
             return null;
-
 
         var returnStr = isNumeric ? n.toLocaleString() : n;
 
@@ -235,7 +242,7 @@ function App() {
     }
 
     const getTrailingStopLossPrice = (r) => {
-        if(r.highestprice === null)
+        if(r.highestprice === null || r.trlng_sl_offset ===null)
             return null;
         return calculateTrailingStopPrice(r);
     }
@@ -253,17 +260,23 @@ function App() {
 
     //deletion
     const deleteAllTickers = async () => {
+        setIsDeleting(true);
         await database.deleteTickers();
+        setIsDeleting(false);
         await load();
     }
 
     const deleteAllMarkets = async () => {
+        setIsDeleting(true);
         await database.deleteMarkets();
+        setIsDeleting(false);
         await load();
     }
 
     const deleteAll = async () => {
+        setIsDeleting(true);
         await database.deleteAll();
+        setIsDeleting(false);
         await load();
     }
 
@@ -418,9 +431,9 @@ function App() {
                     <td className="td-readonly"><span className="table-content-text">{formatN(r.startingprice, '$') || ''}</span></td>
                     <td className="td-readonly"><span className="table-content-text">{formatN(r.highestprice, '$') || ''}</span></td>
                     <td><span className="table-content-text">{ageMinutes(r)}</span></td>
-                    <td><span className="table-content-text">{format(r.trlng_sl_offset, '$') || ''}</span></td>
-                    <td className="td-readonly"><span className="table-content-text">{formatN(getTrailingStopLossPrice(r), '$') || ''}</span></td>
-                    <td><span className="table-content-text">{formatN(r.sl_price, '$') || ''}</span></td>
+                    <td><span className="table-content-text">{format(r.trlng_sl_offset, '$') || '-'}</span></td>
+                    <td className="td-readonly"><span className="table-content-text">{formatN(getTrailingStopLossPrice(r), '$') || '-'}</span></td>
+                    <td><span className="table-content-text">{formatN(r.sl_price, '$') || '-'}</span></td>
                     <td className="td-readonly"><span className="table-content-text"><i>{getPosition(r) || ''}</i></span></td>
                     <td>
                         <a href='#' onClick={(event) => handleOnChangeTrack(event, i)}><i className={r.track ? "fa fa-check-square-o fa-lg" : "fa fa-square-o fa-lg"} aria-hidden="true"></i></a>
@@ -457,6 +470,10 @@ function App() {
         }
     });
 
+    const spinnerText = (text, spinning) => {
+        return spinning ? (<i className="fa fa-spinner fa-spin"/>) : (<div>{text}</div>)
+    }
+
     return (
         <div className="App">
             <Jumbotron className="app-jumbo">
@@ -473,33 +490,38 @@ function App() {
             </header>
             </Jumbotron>
 
-            <Table bordered hover>
-                <thead>
-                    <tr>
-                    <th className="th-ticker">Ticker</th>
-                    <th className="th-crypto">Crypto</th>
-                    <th className='th-exchange'>Exchange</th>
-                    <th>Price</th>
-                    <th>Starting Price</th>
-                    <th>Highest Price</th>
-                    <th>Age (min)</th>
-                    <th>Trailing Stop Loss Offset</th>
-                    <th>Trailing Stop Loss Price</th>
-                    <th>Stop Loss Price</th>
-                    <th>Position</th>
-                    <th className="th-crypto">Track</th>
-                    <th className="th-icons"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {content}
-                </tbody>
-            </Table>
-            <div className="addbutton"><Button variant="primary" onClick={addRow} disabled={rows.length>=10 || editingCopy}>Add</Button></div>
+            <div className="table-content">
+                <Table bordered hover>
+                    <thead>
+                        <tr>
+                        <th className="th-ticker">Ticker</th>
+                        <th className="th-crypto">Crypto</th>
+                        <th className='th-exchange'>Exchange</th>
+                        <th>Price</th>
+                        <th>Starting</th>
+                        <th>Highest</th>
+                        <th>Age (min)</th>
+                        <th className='th-trailingsl'>Trlng S.L. Offset</th>
+                        <th className='th-trailingsl'>Trlng S.L Price</th>
+                        <th>S.L Price</th>
+                        <th>Position</th>
+                        <th className="th-crypto">Track</th>
+                        <th className="th-icons"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {content}
+                    </tbody>
+                </Table>
+            </div>
+            <div className="addbutton">
+                <Button variant="primary" onClick={addRow} disabled={rows.length>=10 || editingCopy}>Add</Button>
+                <Button variant="success" onClick={reloadData} disabled={isReloading} >{spinnerText('Reload', isReloading)}</Button>
+            </div>
             <div className="deletebuttons">
-                <div><Button variant="danger" onClick={deleteAllTickers}>Delete All Tickers</Button></div>
-                <div><Button variant="danger" onClick={deleteAllMarkets}>Delete All Market Values</Button></div>
-                <div><Button variant="danger" onClick={deleteAll}>Delete All</Button></div>
+                <div><Button variant="danger" onClick={deleteAllTickers} disabled={isDeleting}>{spinnerText('Delete All Tickers',isDeleting)}</Button></div>
+                <div><Button variant="danger" onClick={deleteAllMarkets}  disabled={isDeleting}>{spinnerText('Delete All Market Values', isDeleting)}</Button></div>
+                <div><Button variant="danger" onClick={deleteAll} disabled={isDeleting}>{spinnerText('Delete All',isDeleting)}</Button></div>
             </div>
             
         </div>

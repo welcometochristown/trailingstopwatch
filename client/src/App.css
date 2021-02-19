@@ -10,7 +10,9 @@ body {
     background-image: url('background.jpg');
 }
 
-
+table tr, table th {
+    text-align: center;
+}
 
 header h1 {
     text-transform: lowercase;
@@ -44,6 +46,10 @@ table {
     border-collapse: collapse;
 }
 
+.table-content {
+    min-width: 1716px;
+}
+
 .graphimg {
     height: 210px;
     background-image: url('graph.jpg');
@@ -55,8 +61,7 @@ table {
 
 .table-bordered th, .table-bordered td {
     border: none !important;
-    text-align: center; 
-    vertical-align: middle;
+
 }
 
 .table tr td {
@@ -67,6 +72,7 @@ table {
     background-color: #7AC1F7 !important;
     color:white;
     padding:15px !important;
+    min-width: 1690px;;
 }
 
 .app-jumbo header{
@@ -79,6 +85,7 @@ table {
     text-align:left;
 }
 
+
 .deletebuttons {
     float:right;
     text-align:right;
@@ -86,6 +93,9 @@ table {
 
 .deletebuttons button {
     margin-bottom:10px;
+}
+.addbutton button {
+    margin-right:10px;
 }
 
 .th-ticker {
@@ -95,7 +105,7 @@ table {
     width:150px;
 }
 .th-crypto {
-    width: 100px;
+    width: 75px;
 }
 .th-track {
     width:150px;
@@ -103,7 +113,9 @@ table {
 .th-icons {
     width:230px;
 }
-
+.th-trailingsl {
+    width:150px;
+}
 .table-content-text{
     font-size: 18px;
 }

@@ -21,7 +21,8 @@ router.get('/favicon.ico', (req, res) => res.status(204));
 
 const sendStopLossEmail = (ticker, price) => {
     logger.log('sending stop loss email for ' + ticker);
-    exec('echo "Stop Loss Limit Hit For ' + ticker + ' at ' + price + '! Time to sell!" | mail -s "' + ticker + ' - Stop Loss Hit" wtctstockalerts@gmail.com', (err, stdout, stderr) => {
+    const msg = 'Stop Loss Price Hit For ' + ticker + ' at ' + price;
+    exec('echo "' + msg + '" | mail -s "' + msg + '" wtctstockalerts@gmail.com', (err, stdout, stderr) => {
         
         if (err) 
           console.logError(err)
@@ -31,9 +32,12 @@ const sendStopLossEmail = (ticker, price) => {
 
 const sendTrailingStopLossEmail = (ticker, price) => {
     logger.log('sending trailing stop loss email for ' + ticker);
-    exec('echo "Trailing Stop Loss Limit Hit For ' + ticker + ' at ' + price + '! Time to sell!" | mail -s "' + ticker + ' - Trailing Stop Loss Hit" wtctstockalerts@gmail.com', (err, stdout, stderr) => {
+    const msg = 'Trailing Stop Loss Price Hit For ' + ticker + ' at ' + price;
+    exec('echo "' + msg + '" | mail -s "' + msg + '" wtctstockalerts@gmail.com', (err, stdout, stderr) => {
+        
         if (err) 
           console.logError(err)
+
     });
 }
 
@@ -157,20 +161,29 @@ router.get('/reload', (req, res, next) => {
                     item.save();
 
                     if(t.track && item.price !== null) {
-                            
-                       if(item.highestprice !== null && t.trlng_sl_offset !== null) {
+                        logger.log('tracked..');
+                        logger.log('price : ' + item.price);
 
-                           var trailing_price = (item.highestprice-t.trlng_sl_offset);
+                       if(item.highestprice !== null && t.trlng_sl_offset !== null) {
+                            var trailing_price = (item.highestprice-t.trlng_sl_offset);
+                            logger.log('trailing stop loss : ' + trailing_price);
+
                            if(trailing_price > item.startingprice && item.price <= trailing_price ) {
                                 sendTrailingStopLossEmail(t.ticker, item.price );
                                 t.track = false;
                                 t.save();
                            }
                        }
-                       else if(t.sl_price !== null && item.price <= t.sl_price) {
-                            sendStopLossEmail(t.ticker, item.price )
-                            t.track = false;
-                            t.save();
+                       
+                       if(t.sl_price !== null)
+                       {
+                            logger.log('stop loss : ' + t.sl_price);
+
+                           if(item.price <= t.sl_price) {
+                                sendStopLossEmail(t.ticker, item.price )
+                                t.track = false;
+                                t.save();
+                           }
                        }
                     }  
                 });

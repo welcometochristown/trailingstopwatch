@@ -23,6 +23,19 @@ export class database  {
        
     }
 
+    static async reload() {
+            
+        const url = 'http://' + window.location.hostname + ':7000/reload';
+
+        return await database.action(url, 'GET', {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+        })
+        .then(res => res.status);
+
+
+    }
+
     static async load() {
             
         const url = 'http://' + window.location.hostname + ':7000/';
@@ -39,10 +52,11 @@ export class database  {
 
         const url = 'http://' + window.location.hostname + ':7000/' + id;
 
-        await database.action(url, 'DELETE', {
+        return await database.action(url, 'DELETE', {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
         })
+        .then(res => res.status);
 
     }
 
@@ -50,10 +64,11 @@ export class database  {
             
         const url = 'http://' + window.location.hostname + ':7000/tickers';
 
-        await database.action(url, 'DELETE', {
+        return await database.action(url, 'DELETE', {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
         })
+        .then(res => res.status);
 
     }
 
@@ -61,10 +76,11 @@ export class database  {
             
         const url = 'http://' + window.location.hostname + ':7000/markets';
 
-        await database.action(url, 'DELETE', {
+        return await database.action(url, 'DELETE', {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
         })
+        .then(res => res.status);
 
     }
 
@@ -72,10 +88,11 @@ export class database  {
             
         const url = 'http://' + window.location.hostname + ':7000/all';
 
-        await database.action(url, 'DELETE', {
+        return await database.action(url, 'DELETE', {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
         })
+        .then(res => res.status);
 
     }
 
