@@ -15,32 +15,35 @@ const ticker = require('./models/model_ticker');
 const market = require('./models/model_market');
 const { exec } = require('child_process');
 
+const logger = require('./logger');
+
 router.get('/favicon.ico', (req, res) => res.status(204));
 
 const sendStopLossEmail = (ticker, price) => {
-    console.log('sending stop loss email for ' + ticker);
+    logger.log('sending stop loss email for ' + ticker);
     exec('echo "Stop Loss Limit Hit For ' + ticker + ' at ' + price + '! Time to sell!" | mail -s "' + ticker + ' - Stop Loss Hit" wtctstockalerts@gmail.com', (err, stdout, stderr) => {
-        if (err) {
-          console.error(err)
-        }
+        
+        if (err) 
+          console.logError(err)
+
     });
 }
 
 const sendTrailingStopLossEmail = (ticker, price) => {
-    console.log('sending trailing stop loss email for ' + ticker);
+    logger.log('sending trailing stop loss email for ' + ticker);
     exec('echo "Trailing Stop Loss Limit Hit For ' + ticker + ' at ' + price + '! Time to sell!" | mail -s "' + ticker + ' - Trailing Stop Loss Hit" wtctstockalerts@gmail.com', (err, stdout, stderr) => {
-        if (err) {
-          console.error(err)
-        }
+        if (err) 
+          console.logError(err)
     });
 }
 
 router.delete('/all', (req, res, next) => {
     mongoose.connect('mongodb+srv://' + config.db_config.user + ':' + config.db_config.pass + '@' + config.db_config.cluster + '/' + config.db_config.db + '?retryWrites=true&w=majority', { useNewUrlParser: true }, (err) => {
      
-        if (err)
-            throw err;
-
+        if (err) {
+            console.logError(err);
+            res.sendStatus(500);
+        }
 
         ticker.deleteMany({}, (err) =>{
             if (err)
@@ -59,13 +62,16 @@ router.delete('/all', (req, res, next) => {
 router.delete('/tickers', (req, res, next) => {
     mongoose.connect('mongodb+srv://' + config.db_config.user + ':' + config.db_config.pass + '@' + config.db_config.cluster + '/' + config.db_config.db + '?retryWrites=true&w=majority', { useNewUrlParser: true }, (err) => {
      
-        if (err)
-            throw err;
-
+        if (err) {
+            console.logError(err);
+            res.sendStatus(500);
+        }
 
         ticker.deleteMany({}, (err) =>{
-            if (err)
-                throw err;
+            if (err) {
+                console.logError(err);
+                res.sendStatus(500);
+            }
         })
 
         res.sendStatus(200);
@@ -76,12 +82,16 @@ router.delete('/tickers', (req, res, next) => {
 router.delete('/markets', (req, res, next) => {
     mongoose.connect('mongodb+srv://' + config.db_config.user + ':' + config.db_config.pass + '@' + config.db_config.cluster + '/' + config.db_config.db + '?retryWrites=true&w=majority', { useNewUrlParser: true }, (err) => {
      
-        if (err)
-            throw err;
+        if (err) {
+            console.logError(err);
+            res.sendStatus(500);
+        }
 
         market.deleteMany({}, (err) =>{
-            if (err)
-                throw err;
+            if (err) {
+                console.logError(err);
+                res.sendStatus(500);
+            }
         })
         res.sendStatus(200);
     })  
@@ -91,8 +101,10 @@ router.delete('/markets', (req, res, next) => {
 router.get('/reload', (req, res, next) => {
     mongoose.connect('mongodb+srv://' + config.db_config.user + ':' + config.db_config.pass + '@' + config.db_config.cluster + '/' + config.db_config.db + '?retryWrites=true&w=majority', { useNewUrlParser: true }, (err) => {
      
-        if (err)
-            throw err;
+        if (err) {
+            console.logError(err);
+            res.sendStatus(500);
+        }
  
         ticker.find({}, async (err, entries) => {
 
@@ -112,7 +124,7 @@ router.get('/reload', (req, res, next) => {
                 const pResult = prices.filter(n => n.ticker == t.ticker);
 
                 if(pResult.length == 0) {
-                    console.log('no price info for ' + t.ticker);
+                    logger.log('no price info for ' + t.ticker);
                     continue;
                 }
                 
@@ -120,8 +132,16 @@ router.get('/reload', (req, res, next) => {
 
                 market.findOne({ticker : t.ticker, exchange: t.exchange, isCrypto:t.isCrypto}, (err, item) =>
                 {
+                    if (err) {
+                        console.logError(err);
+                        return;
+                    }
+
                     if(item){
                         item.highestprice = Math.max(item.highestprice, p);
+
+                        if(!item.startingprice)
+                            item.startingprice = p;
                     }
                     else {
                         item = new market();
@@ -136,14 +156,16 @@ router.get('/reload', (req, res, next) => {
                     item.price = p;
                     item.save();
 
-                    if(t.track && item.highestprice !== null) {
+                    if(t.track && item.price !== null) {
+                            
+                       if(item.highestprice !== null && t.trlng_sl_offset !== null) {
 
-                       var trailing_price = (item.highestprice-t.trlng_sl_offset);
-    
-                       if(t.trlng_sl_offset !== null && trailing_price > item.startingprice && item.price <= trailing_price ) {
-                            sendTrailingStopLossEmail(t.ticker, item.price );
-                            t.track = false;
-                            t.save();
+                           var trailing_price = (item.highestprice-t.trlng_sl_offset);
+                           if(trailing_price > item.startingprice && item.price <= trailing_price ) {
+                                sendTrailingStopLossEmail(t.ticker, item.price );
+                                t.track = false;
+                                t.save();
+                           }
                        }
                        else if(t.sl_price !== null && item.price <= t.sl_price) {
                             sendStopLossEmail(t.ticker, item.price )
@@ -158,8 +180,8 @@ router.get('/reload', (req, res, next) => {
             res.sendStatus(200);
 
         }) .catch(err => {
-            console.log(err.message);
-            res.sendStatus(400);
+            logger.log(err.message);
+            res.sendStatus(500);
         })
     })  
 });
@@ -169,10 +191,18 @@ router.get('/reload', (req, res, next) => {
 router.get('/', async(req, res, next) => {
     mongoose.connect('mongodb+srv://' + config.db_config.user + ':' + config.db_config.pass + '@' + config.db_config.cluster + '/' + config.db_config.db + '?retryWrites=true&w=majority', { useNewUrlParser: true }, (err) => {
      
-        if (err)
-            throw err;
+        if (err) {
+            console.logError(err);
+            res.sendStatus(500);
+        }
  
-            ticker.find({}, (err, entries) => {
+        ticker.find({}, (err, entries) => {
+
+            if (err) {
+                console.logError(err);
+                res.sendStatus(500);
+            }
+
             res.status(200).json(entries);
         })
     })  
@@ -184,8 +214,8 @@ router.post('/realtimeprice', jsonParser, async(req, res, next) => {
         var p = await scrape.getTickerPrice(req.body);
         res.status(200).json(p);    
     }catch(err){
-        console.log(err)
-        res.sendStatus(400);
+        logger.log(err)
+        res.sendStatus(500);
     }
 });
 
@@ -194,15 +224,20 @@ router.post('/price', jsonParser, async(req, res, next) => {
 
     mongoose.connect('mongodb+srv://' + config.db_config.user + ':' + config.db_config.pass + '@' + config.db_config.cluster + '/' + config.db_config.db + '?retryWrites=true&w=majority', { useNewUrlParser: true }, (err) => {
      
-        if (err)
-            throw err;
+        if (err) {
+            console.logError(err);
+            res.sendStatus(500);
+        }
          
         market.findOne({ticker: req.body.ticker, exchange:req.body.exchange, isCrypto:req.body.isCrypto}, async (err, entry) => {
+
+            if (err) {
+                console.logError(err);
+                res.sendStatus(500);
+            }
+
             res.status(200).json(entry);
-        }).catch(err => {
-            console.log(err.message);
-            res.sendStatus(400);
-        });
+        })
 
     })
 
@@ -212,13 +247,17 @@ router.post('/price', jsonParser, async(req, res, next) => {
 router.put('/', jsonParser, (req, res, next) => {
     mongoose.connect('mongodb+srv://' + config.db_config.user + ':' + config.db_config.pass + '@' + config.db_config.cluster + '/' + config.db_config.db + '?retryWrites=true&w=majority', { useNewUrlParser: true, useFindAndModify: false }, (err) => {
 
-        if (err)
-            throw err;
+        if (err) {
+            console.logError(err);
+            res.sendStatus(500);
+        }
 
-            ticker.create(req.body, (err, item) => {
+        ticker.create(req.body, (err, item) => {
            
-            if(err) 
-                throw err;
+            if (err) {
+                console.logError(err);
+                res.sendStatus(500);
+            }
 
             res.status(200).json(item);
         });
@@ -229,10 +268,17 @@ router.put('/', jsonParser, (req, res, next) => {
 router.post('/', jsonParser, (req, res, next) => {
     mongoose.connect('mongodb+srv://' + config.db_config.user + ':' + config.db_config.pass + '@' + config.db_config.cluster + '/' + config.db_config.db + '?retryWrites=true&w=majority', { useNewUrlParser: true, useFindAndModify: false }, (err) => {
 
-        if (err)
-            throw err;
+        if (err) {
+            console.logError(err);
+            res.sendStatus(500);
+        }
 
         ticker.findOne({_id: req.body._id}, async (err, entry) => {
+
+            if (err) {
+                console.logError(err);
+                res.sendStatus(500);
+            }
 
             //if wasnt tracked, but now is tracked, reset the highest price value on the market price
             if(!entry.track && req.body.track) {
@@ -254,6 +300,10 @@ router.post('/', jsonParser, (req, res, next) => {
     
                 res.status(200).json(item);
             });
+
+        }).catch(err => {
+            logger.log(err.message);
+            res.sendStatus(500);
         });
     });        
 });
@@ -267,14 +317,15 @@ router.delete('/:id', async(req, res, next) => {
             throw err;
 
         ticker.findOneAndDelete({_id: req.params.id}, async (err, entry) => {
+
+            if (err) {
+                console.logError(err);
+                res.sendStatus(500);
+            }
+
             res.sendStatus(200);
-        }).catch(err => {
-            console.log(err.message);
-            res.sendStatus(400);
-        });
-
+        })
     })
-
 });
 
 

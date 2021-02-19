@@ -240,9 +240,7 @@ function App() {
     const getPosition = (r) => {
         if(!r.track)
             return 'Untracked';
-
-        if(r.price < r.trlng_sl_limit)
-            return "Sell";
+            
         return "Hold";
     }
 

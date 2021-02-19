@@ -1,7 +1,5 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
 const puppeteer = require('puppeteer');
-const config = require('./config');
+const logger = require('./logger');
 
 async function getTickerPrice(ticker) {
     var prices = await getTickerPrices([ticker]);
@@ -20,16 +18,21 @@ async function scrapeTMXMoneyPrice(page, ticker, isCrypto, exchange, timeout=150
 
     const url = 'https://money.tmx.com/en/quote/' + ticker;
 
-    console.log(url);
-    await page.goto(url, {timeout:timeout});
+    logger.logInfo(url);
+    const promise = page.goto(url, {timeout:timeout});
 
-    console.log('waiting for response');
-    const resp = await page.waitForResponse((response) => response.request().url() == 'https://app-money.tmx.com/graphql' && response.request().method() == 'POST');
+    logger.log('waiting for response');
+    const resp = await page.waitForResponse((response) =>   response.request().url() == 'https://app-money.tmx.com/graphql' && 
+                                                            response.request().method() == 'POST' &&
+                                                            JSON.parse(response.request()._postData).operationName == "getQuoteBySymbol");
 
-    console.log('getting content');
+    logger.log('navigating to page');
+    await promise;
+
+    logger.log('getting content');
     const txt = await resp.text();
     
-    console.log(txt);
+    logger.log(txt);
     const obj = JSON.parse(txt);
     const price = obj.data.getQuoteBySymbol.price;
 
@@ -39,7 +42,7 @@ async function scrapeTMXMoneyPrice(page, ticker, isCrypto, exchange, timeout=150
 //fast but delayed
 async function scrapeGooglePrice(page, ticker, isCrypto, exchange, timeout=5000) {
     const url = 'https://www.google.com/finance/quote/' + ticker + (isCrypto ? '-' : ':') + exchange;
-    console.log(url);
+    logger.log(url);
 
     await page.goto(url, {waitUntil: 'load'});
     await page.waitForSelector('.YMlKec.fxKbKc', { timeout : timeout });
@@ -51,76 +54,86 @@ async function scrapeGooglePrice(page, ticker, isCrypto, exchange, timeout=5000)
 }
 
 async function getTickerPrices(tickers) {
-    console.log("starting scrape");
-    console.log(tickers);
+    logger.log("starting scrape");
+    logger.log(tickers);
 
     // Launch the browser
     const browser = await puppeteer.launch({
-        executablePath: "/usr/bin/chromium",
+        executablePath: "/usr/bin/chromium-browser",
         args:[
-            '--no-sandbox',
-            '--disable-dev-shm-usage',
+            '--no-sandbox'
         ]
     });
 
-    console.log('opening new browser page');
-    // Create an instance of the page
-    const page = await browser.newPage();
+    try
+    {
+        logger.log('opening new browser page');
+        // Create an instance of the page
+        const page = await browser.newPage();
 
-     await page.setRequestInterception(true);
+        logger.log('setting request interception');
+        await page.setRequestInterception(true);
 
-     page.on('response', async(response) => {
-        console.log('--> Reponse From ' + response.request().url() + ' (' + response.request().method() + ')');
-     });
+        logger.log('adding response interceptor');
+        page.on('response', async(response) => {
+            logger.log('--> Reponse From ' + response.request().url() + ' (' + response.request().method() + ')');
+        });
 
-    page.on('request', async(request) => {
-        if(request.resourceType() == 'stylesheet' || request.resourceType() == 'font' || request.resourceType() == 'image'){
-            request.abort();
+        logger.log('adding request interceptor');
+        page.on('request', async(request) => {
+            if(request.resourceType() == 'stylesheet' || request.resourceType() == 'font' || request.resourceType() == 'image'){
+                request.abort();
+            }
+            else if(!request.url().includes('money.tmx.com') && !request.url().includes('app.tmx.com')){
+                request.abort();
+            }
+            else if(request.url().includes('area.chart.def.json')) {
+                request.abort();
+            }
+            else {
+                //logger.log(request.url());
+                request.continue();
+            }
+            
+        });
+
+        var prices = []
+
+        logger.log('iterating over tickers');
+        for (var i =0; i < tickers.length; i++) {
+
+            if(tickers[i] === undefined)   
+                continue;
+
+            const ticker = tickers[i].ticker;
+            const exchange = tickers[i].exchange;
+            const isCrypto = tickers[i].isCrypto;
+
+            var p = {
+                ticker: ticker,
+                exchange: exchange,
+                price: null
+            };
+
+            try {
+                p.price = await scrapeTMXMoneyPrice(page, ticker, isCrypto, exchange);
+            } catch (err) {
+                //ignore for now, probably a bad ticker
+                logger.logError(err);
+            }
+                    
+            prices.push(p);
         }
-        else if(!request.url().includes('money.tmx.com') && !request.url().includes('app.tmx.com')){
-            request.abort();
-        }
-        else if(request.url().includes('area.chart.def.json')) {
-            request.abort();
-        }
-        else {
-            //console.log(request.url());
-            request.continue();
-        }
-        
-    });
-
-    var prices = []
-
-    console.log('iterating over tickers');
-    for (var i =0; i < tickers.length; i++) {
-
-        if(tickers[i] === undefined)   
-            continue;
-
-        const ticker = tickers[i].ticker;
-        const exchange = tickers[i].exchange;
-        const isCrypto = tickers[i].isCrypto;
-
-        var p = {
-            ticker: ticker,
-            exchange: exchange,
-            price: null
-        };
-
-        try {
-            p.price = await scrapeTMXMoneyPrice(page, ticker, isCrypto, exchange);
-        } catch (err) {
-            //ignore for now, probably a bad ticker
-            console.log(err);
-        }
-                
-        prices.push(p);
+    }
+    catch(err) {
+        logger.logError(err);
+    }
+    finally {
+        logger.log('closing browser');
+        await browser.close();
     }
 
-    await browser.close();
-
-    console.log(prices);
+    logger.logInfo(prices);
     return prices;
 }
 
