@@ -51,13 +51,21 @@ table {
 }
 
 .graphimg {
-    height: 210px;
-    background-image: url('graph.jpg');
+    height: 214px; 
+    background-image: url('graph-wide.jpg');
     background-repeat:no-repeat;
     background-size: contain;
-    max-width: 345px  !important;
+    border: 4px solid #ECECEC;
+    width:1060px;
+}
+table th {
+    background-color: #C3E0F4;
+    font-size: 14px;
 }
 
+table tr {
+    font-size: 14px;
+}
 
 .table-bordered th, .table-bordered td {
     border: none !important;
@@ -65,11 +73,12 @@ table {
 }
 
 .table tr td {
-    padding: 1.5rem !important;
+    padding: 1.0rem !important;
+    vertical-align: middle;
 }
 
 .app-jumbo {
-    background-color: #7AC1F7 !important;
+    background-color: #8EC8F2 !important;
     color:white;
     padding:15px !important;
     min-width: 1690px;;
@@ -99,7 +108,7 @@ table {
 }
 
 .th-ticker {
-    width: 100px;
+    width: 150px;
 }
 .th-exchange {
     width:150px;
@@ -111,13 +120,13 @@ table {
     width:150px;
 }
 .th-icons {
-    width:230px;
+    width:180px;
+}
+.th-startingprice {
+    width:150px;
 }
 .th-trailingsl {
     width:150px;
-}
-.table-content-text{
-    font-size: 18px;
 }
 
 .tr-tracked {

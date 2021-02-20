@@ -33,7 +33,8 @@ function App() {
 
     }, [rows.needsSaving]);
 
-    const blankTicker = () => ({ ticker: null, exchange: null, isCrypto:false, price: null, startingprice:null, highestprice: null, timestamp:null, sl_price: null, trlng_sl_offset: null, track:false, initialising:true });
+    const blankTicker = () => ({ ticker: null, exchange: null, isCrypto:false, price: null, startingprice:null, 
+                                    highestprice: null, timestamp:null, sl_price: null, trlng_sl_offset: null, track:false, initialising:true });
 
     const load = async () => {
         assignRowsAsync(async(r) =>
@@ -52,8 +53,6 @@ function App() {
         var m = await database.getPrice({ticker : item.ticker, exchange:item.exchange, isCrypto:item.isCrypto});
 
         item.price = m.price;
-        item.startingprice = m.startingprice;
-        item.highestprice = m.highestprice;
         item.timestamp = m.timestamp;
     }
 
@@ -130,6 +129,7 @@ function App() {
         setIsReloading(true);
         await database.reload();
         setIsReloading(false);
+        await load();
     }
 
     //Editable Handlers (editingCopy)
@@ -144,6 +144,10 @@ function App() {
 
     const handleTickerChange = (e, i) => {
         updateEditingCopyObject(o => o.ticker = e.target.value.toUpperCase());
+    }
+
+    const handleStartingPriceChange = (e, i) => {
+        updateEditingCopyObject(o => o.startingprice = e.target.value);
     }
 
     const handleTrailingStopLossOffsetChange = (e, i) => {
@@ -338,12 +342,12 @@ function App() {
                         />
                     </td>
 
-                    <td className="td-readonly">                      
+                    <td>                      
                         <FormControl
                             placeholder=""
                             aria-label={"startingprice_" + i}
                             aria-describedby="basic-addon1"
-                            readOnly={true}
+                            onChange={(event) => handleStartingPriceChange(event, i)}
                             value={editingCopy.object.startingprice || ''}
                             type="number"
                         />
@@ -366,7 +370,6 @@ function App() {
                             aria-label={"trlng_sl_prc" + i}
                             aria-describedby="basic-addon1"
                             onChange={(event) => handleTrailingStopLossOffsetChange(event, i)}
-                            readOnly={!editingCopy.object.price}
                             value={editingCopy.object.trlng_sl_offset || ''}
                             type="number"
                         />
@@ -388,7 +391,6 @@ function App() {
                             aria-label={"trlng_sl_prc" + i}
                             aria-describedby="basic-addon1"
                             onChange={(event) => handleStopLossPriceChange(event, i)}
-                            readOnly={!editingCopy.object.price}
                             value={editingCopy.object.sl_price || ''}
                             type="number"
                         />
@@ -428,7 +430,7 @@ function App() {
                     <td><span className="table-content-text"><i className={r.isCrypto ? "fa fa-check-square-o fa-lg" : "fa fa-square-o fa-lg"} aria-hidden="true"></i> </span></td>     
                     <td><span className="table-content-text">{format(r.exchange).toUpperCase()}</span></td>     
                     <td className="td-readonly"><span className="table-content-text"><b>{formatN(r.price, '$') || ''}</b></span></td>
-                    <td className="td-readonly"><span className="table-content-text">{formatN(r.startingprice, '$') || ''}</span></td>
+                    <td><span className="table-content-text">{formatN(r.startingprice, '$') || ''}</span></td>
                     <td className="td-readonly"><span className="table-content-text">{formatN(r.highestprice, '$') || ''}</span></td>
                     <td><span className="table-content-text">{ageMinutes(r)}</span></td>
                     <td><span className="table-content-text">{format(r.trlng_sl_offset, '$') || '-'}</span></td>
@@ -498,7 +500,7 @@ function App() {
                         <th className="th-crypto">Crypto</th>
                         <th className='th-exchange'>Exchange</th>
                         <th>Price</th>
-                        <th>Starting</th>
+                        <th className='th-startingprice'>Starting</th>
                         <th>Highest</th>
                         <th>Age (min)</th>
                         <th className='th-trailingsl'>Trlng S.L. Offset</th>

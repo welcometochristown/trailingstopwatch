@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 //create router
 const router = express.Router();
+const fetch = require('node-fetch');
 
 //create scraper
 const scrape = require('./scrape');
@@ -19,27 +20,64 @@ const logger = require('./logger');
 
 router.get('/favicon.ico', (req, res) => res.status(204));
 
-const sendStopLossEmail = (ticker, price) => {
-    logger.log('sending stop loss email for ' + ticker);
+const sendPushOver = async (msg) => {
+    const url = 'https://api.pushover.net/1/messages.json';
+    const body = JSON.stringify({
+        "user": "u1fuqaj5nwabpgwpctjws2f1ax9ppq",
+        "token" : "av4g4ewiukc62sm24dyu5fvkta8grf",
+        "message" : msg
+    });
+
+    return await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body:body
+    })
+    .catch(err => logger.logError(err));
+
+}
+
+const sendEmail = (msg) => {
+    return new Promise(function(resolve, reject) {
+        exec('echo "' + msg + '" | mail -s "' + msg + '" wtctstockalerts@gmail.com', (err, stdout, stderr) => {
+            
+            if (err) {
+                console.logError(err)
+                reject(err);
+            } 
+            else {
+                resolve();
+            }                
+        });
+    });
+}
+
+const sendStopLossAlert = async (ticker, price) => {
     const msg = 'Stop Loss Price Hit For ' + ticker + ' at ' + price;
-    exec('echo "' + msg + '" | mail -s "' + msg + '" wtctstockalerts@gmail.com', (err, stdout, stderr) => {
-        
-        if (err) 
-          console.logError(err)
-
-    });
+    await sendEmail(msg);
+    await sendPushOver(msg);
 }
 
-const sendTrailingStopLossEmail = (ticker, price) => {
-    logger.log('sending trailing stop loss email for ' + ticker);
+const sendTrailingStopLossAlert = async (ticker, price) => {
     const msg = 'Trailing Stop Loss Price Hit For ' + ticker + ' at ' + price;
-    exec('echo "' + msg + '" | mail -s "' + msg + '" wtctstockalerts@gmail.com', (err, stdout, stderr) => {
-        
-        if (err) 
-          console.logError(err)
-
-    });
+    await sendEmail(msg);
+    await sendPushOver(msg);
 }
+
+router.get('/status', (req, res, next) => {
+    mongoose.connect('mongodb+srv://' + config.db_config.user + ':' + config.db_config.pass + '@' + config.db_config.cluster + '/' + config.db_config.db + '?retryWrites=true&w=majority', { useNewUrlParser: true }, (err) => {
+        
+        if (err) {
+            console.logError(err);
+            res.sendStatus(500);
+        }
+
+        res.sendStatus(200);
+    });
+});
 
 router.delete('/all', (req, res, next) => {
     mongoose.connect('mongodb+srv://' + config.db_config.user + ':' + config.db_config.pass + '@' + config.db_config.cluster + '/' + config.db_config.db + '?retryWrites=true&w=majority', { useNewUrlParser: true }, (err) => {
@@ -112,12 +150,25 @@ router.get('/reload', (req, res, next) => {
  
         ticker.find({}, async (err, entries) => {
 
-            var items = entries.map(n => 
+            const deDupe = (items) => {
+                const distinctItems = [];
+                for(var i in items)
+                {
+                    var item = items[i];
+                    if(!distinctItems.some(n => n.ticker == item.ticker && n.exchange == item.exchange && n.isCrypto == item.isCrypto))
+                        distinctItems.push(item);
+                }
+                return distinctItems;
+            }
+
+            var items = deDupe(entries.map(n => 
                 ({
                     ticker : n.ticker,
                     exchange : n.exchange, 
                     isCrypto : n.isCrypto
-                }));
+                })));
+
+            console.log(items);
             
             //get the price for each ticker
             const prices = await scrape.getTickerPrices(items);
@@ -125,14 +176,14 @@ router.get('/reload', (req, res, next) => {
             for(var i in entries) {
 
                 const t = entries[i];
-                const pResult = prices.filter(n => n.ticker == t.ticker);
+                const pResult = prices.filter(n => n.ticker === t.ticker);
 
-                if(pResult.length == 0) {
+                if(pResult.length == 0 || pResult[0].price === null) {
                     logger.log('no price info for ' + t.ticker);
                     continue;
                 }
                 
-                const p = pResult[0].price;
+                const price = pResult[0].price;
 
                 market.findOne({ticker : t.ticker, exchange: t.exchange, isCrypto:t.isCrypto}, (err, item) =>
                 {
@@ -141,54 +192,52 @@ router.get('/reload', (req, res, next) => {
                         return;
                     }
 
-                    if(item){
-                        item.highestprice = Math.max(item.highestprice, p);
-
-                        if(!item.startingprice)
-                            item.startingprice = p;
-                    }
-                    else {
+                    if(!item){
                         item = new market();
                         item.ticker = t.ticker;
                         item.exchange = t.exchange;
                         item.isCrypto = t.isCrypto;
-                        item.startingprice = p;
-                        item.highestprice = p;
-                    }
-
+                    }           
+                    
                     item.timestamp = new Date().toISOString();
-                    item.price = p;
+                    item.price = price;
                     item.save();
-
-                    if(t.track && item.price !== null) {
-                        logger.log('tracked..');
-                        logger.log('price : ' + item.price);
-
-                       if(item.highestprice !== null && t.trlng_sl_offset !== null) {
-                            var trailing_price = (item.highestprice-t.trlng_sl_offset);
-                            logger.log('trailing stop loss : ' + trailing_price);
-
-                           if(trailing_price > item.startingprice && item.price <= trailing_price ) {
-                                sendTrailingStopLossEmail(t.ticker, item.price );
-                                t.track = false;
-                                t.save();
-                           }
-                       }
-                       
-                       if(t.sl_price !== null)
-                       {
-                            logger.log('stop loss : ' + t.sl_price);
-
-                           if(item.price <= t.sl_price) {
-                                sendStopLossEmail(t.ticker, item.price )
-                                t.track = false;
-                                t.save();
-                           }
-                       }
-                    }  
                 });
 
-                          
+                t.highestprice = Math.max(t.highestprice, price);
+                t.highestprice = price;
+                t.save();
+
+                if(t.track) {
+                    logger.log('tracked..');
+                    logger.log('price : ' + price);
+
+                    if(t.highestprice !== null && t.trlng_sl_offset !== null) {
+                        var trailing_price = (t.highestprice-t.trlng_sl_offset);
+                        logger.log('trailing stop loss : ' + trailing_price);
+
+                        if((t.startingprice === null || trailing_price > t.startingprice) && price <= trailing_price ) {
+                            sendTrailingStopLossAlert(t.ticker, price);
+                            t.track = false;
+                        }
+                    }
+                    
+                    if(t.sl_price !== null)
+                    {
+                        logger.log('stop loss : ' + t.sl_price);
+
+                        if(price <= t.sl_price) {
+                            sendStopLossAlert(t.ticker, price)
+                            t.track = false;
+                        }
+                    }
+
+                    if(!t.track) {
+                        t.save();
+                    }
+                } 
+                
+                
             }
             res.sendStatus(200);
 
@@ -224,8 +273,8 @@ router.get('/', async(req, res, next) => {
 router.post('/realtimeprice', jsonParser, async(req, res, next) => {
     
     try {
-        var p = await scrape.getTickerPrice(req.body);
-        res.status(200).json(p);    
+        var price = await scrape.getTickerPrice(req.body);
+        res.status(200).json(price);    
     }catch(err){
         logger.log(err)
         res.sendStatus(500);
@@ -300,7 +349,6 @@ router.post('/', jsonParser, (req, res, next) => {
                     if(!item)
                         return;
 
-                    item.startingprice = item.price; 
                     item.highestprice = item.price;
                     item.save();
                 });

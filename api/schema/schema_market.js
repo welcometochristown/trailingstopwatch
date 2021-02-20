@@ -3,8 +3,6 @@ const schema = {
     "exchange" : String,
     "isCrypto" : Boolean,
     "price" : Number,
-    "highestprice" : Number,
-    "startingprice" : Number,
     "timestamp" : String
 }
 
