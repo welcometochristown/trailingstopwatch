@@ -1,6 +1,6 @@
 
 
-const enableDebug = true;
+const enableDebug = !true;
 const enableError = true;
 const enableInfo = true;
 

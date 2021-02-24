@@ -19,6 +19,15 @@ function App() {
     
     useEffect(() => {
         load();
+
+        const url = 'http://' + window.location.hostname + ':7000/monitor';
+        const events = new EventSource(url);
+        events.onmessage = (event) => {
+            if(!editingCopy) {
+                console.log('monitor event');
+                load();
+            }
+        };
     }, []);
 
     useEffect(async () => {
@@ -34,7 +43,7 @@ function App() {
     }, [rows.needsSaving]);
 
     const blankTicker = () => ({ ticker: null, exchange: null, isCrypto:false, price: null, startingprice:null, 
-                                    highestprice: null, timestamp:null, sl_price: null, trlng_sl_offset: null, track:false, initialising:true });
+                                    highestprice: null, timestamp:null, sl_price: null, trlng_sl_offset: null, track:false, initialising:true, alerttype:null });
 
     const load = async () => {
         assignRowsAsync(async(r) =>
@@ -52,6 +61,8 @@ function App() {
     const fillPrice = async(item) => {
         var m = await database.getPrice({ticker : item.ticker, exchange:item.exchange, isCrypto:item.isCrypto});
 
+        if(!m)
+            return;
         item.price = m.price;
         item.timestamp = m.timestamp;
     }
@@ -129,7 +140,6 @@ function App() {
         setIsReloading(true);
         await database.reload();
         setIsReloading(false);
-        await load();
     }
 
     //Editable Handlers (editingCopy)
@@ -158,6 +168,10 @@ function App() {
         updateEditingCopyObject(o => o.sl_price = e.target.value);
     }
 
+    const handleAlertTypeChange = (e, i) => {
+        updateEditingCopyObject(o => o.alerttype = e.value);
+    }
+    
     //Button Handlers
     const handleOnChangeTrack = (e, i) => {
         updateRows(r => {
@@ -246,20 +260,27 @@ function App() {
     }
 
     const getTrailingStopLossPrice = (r) => {
+
         if(r.highestprice === null || r.trlng_sl_offset ===null)
             return null;
+
         return calculateTrailingStopPrice(r);
     }
 
+    const isTrailingStopLossEnabled = (r) => {
+        return r.startingprice === null || calculateTrailingStopPrice(r) <= r.startingprice;
+    }
+
+
     const getPosition = (r) => {
-        if(!r.track)
-            return 'Untracked';
+        if(!r.price || !r.startingprice)
+            return null;
             
-        return "Hold";
+        return  r.price - r.startingprice;
     }
 
     const calculateTrailingStopPrice = (r) => {
-        return  Number(r.highestprice) - Number(r.trlng_sl_offset);
+        return Number(r.highestprice) - Number(r.trlng_sl_offset);
     }
 
     //deletion
@@ -300,11 +321,13 @@ function App() {
     }
 
     const stock_exchanges = [{label:"TSE", value:"TSE"}, {label:"CVE", value:"CVE"}];
-    const crypto_currencies = [{label:"CAD", value:"CAD"}, {label:"GBP", value:"GBP"}, {label:"USD", value:"USD"}];
+    const crypto_currencies = [{label:"CAD", value:"CAD"}, {label:"BTC", value:"BTC"}];
     
     const content = rows.items.map((r, i) => 
     {
         var options = r.isCrypto ? crypto_currencies : stock_exchanges;
+        var alerts = [{label :'None', value:null}, {label :'Push', value:'Push'}, {label:'Email', value:'Email'}];
+
         if(editingCopy && editingCopy.index == i) {
             return (
                 (<tr key={i}>
@@ -363,7 +386,7 @@ function App() {
                             type="number"
                         />
                     </td>
-                    <td>{ageMinutes(r)}</td>
+                    <td></td>
                     <td>
                         <FormControl
                             placeholder=""
@@ -395,9 +418,20 @@ function App() {
                             type="number"
                         />
                     </td>
-                    <td className="td-readonly"><i>{getPosition(editingCopy.object) || ''}</i></td>
+                    <td className="td-readonly"></td>
                     <td>
                        <i className={editingCopy.object.track ? "fa fa-check-square-o fa-lg" : "fa fa-square-o fa-lg"} aria-hidden="true"></i>
+                    </td>
+                    <td>
+
+                    <Select 
+                            aria-label={"alerttype_" + i}
+                            options={alerts}
+                            value={alerts.filter(n => n.value == editingCopy.object.alerttype)}
+                            isSearchable={false}
+                            onChange={(event) => handleAlertTypeChange(event, i)}
+                            components={{ DropdownIndicator:() => null, IndicatorSeparator:() => null }}
+                        />
                     </td>
                     <td>
                         <span>
@@ -426,20 +460,38 @@ function App() {
         else {
             return (
                 (<tr key={i} className={r.track?'tr-tracked':''}>
-                    <td><span className="table-content-text"><b>{format(r.ticker).toUpperCase()}</b></span></td>     
-                    <td><span className="table-content-text"><i className={r.isCrypto ? "fa fa-check-square-o fa-lg" : "fa fa-square-o fa-lg"} aria-hidden="true"></i> </span></td>     
-                    <td><span className="table-content-text">{format(r.exchange).toUpperCase()}</span></td>     
-                    <td className="td-readonly"><span className="table-content-text"><b>{formatN(r.price, '$') || ''}</b></span></td>
-                    <td><span className="table-content-text">{formatN(r.startingprice, '$') || ''}</span></td>
-                    <td className="td-readonly"><span className="table-content-text">{formatN(r.highestprice, '$') || ''}</span></td>
-                    <td><span className="table-content-text">{ageMinutes(r)}</span></td>
-                    <td><span className="table-content-text">{format(r.trlng_sl_offset, '$') || '-'}</span></td>
-                    <td className="td-readonly"><span className="table-content-text">{formatN(getTrailingStopLossPrice(r), '$') || '-'}</span></td>
-                    <td><span className="table-content-text">{formatN(r.sl_price, '$') || '-'}</span></td>
-                    <td className="td-readonly"><span className="table-content-text"><i>{getPosition(r) || ''}</i></span></td>
+                    <td><span><b>{format(r.ticker).toUpperCase()}</b></span></td>     
+                    <td><span><i className={r.isCrypto ? "fa fa-check-square-o fa-lg" : "fa fa-square-o fa-lg"} aria-hidden="true"></i> </span></td>     
+                    <td><span>{format(r.exchange).toUpperCase()}</span></td>     
+                    <td className="td-readonly"><span><b>{formatN(r.price, '$') || ''}</b></span></td>
+                    <td><span>{formatN(r.startingprice, '$') || ''}</span></td>
+                    <td className="td-readonly"><span>{formatN(r.highestprice, '$') || ''}</span></td>
+                    <td><span>{ageMinutes(r)}</span></td>
+                    <td><span>{format(r.trlng_sl_offset, '$') || '-'}</span></td>
+                    <td className="td-readonly">
+                        <span className={isTrailingStopLossEnabled(r) ? "disabled-text" : ""}>
+                            {formatN(getTrailingStopLossPrice(r), '$') || '-'}
+                        </span>
+                    </td>
+                    <td><span>{formatN(r.sl_price, '$') || '-'}</span></td>
+                    <td className="td-readonly">
+                        <span className={getPosition(r) < 0 ? "neg" : "pos"}>
+                            {formatN(getPosition(r), '$') || ''}
+                            <span className="arrows">
+                            {
+                                getPosition(r) < 0 ?
+                                (<i className="fa fa-arrow-circle-down" aria-hidden="true"></i>) :
+                                getPosition(r) > 0 ?
+                                (<i className="fa fa-arrow-circle-up" aria-hidden="true"></i>) :
+                                null
+                            }
+                            </span>
+                        </span>
+                    </td>
                     <td>
                         <a href='#' onClick={(event) => handleOnChangeTrack(event, i)}><i className={r.track ? "fa fa-check-square-o fa-lg" : "fa fa-square-o fa-lg"} aria-hidden="true"></i></a>
                     </td>
+                    <td><span>{formatN(r.alerttype) || '-'}</span></td>
                     <td className="td-icons">
                         <span>
                             <a href='#' onClick={(event) => handleOnClickEdit(event, i)}><i className="fa fa-pencil fa-lg" aria-hidden="true"></i></a>
@@ -499,15 +551,16 @@ function App() {
                         <th className="th-ticker">Ticker</th>
                         <th className="th-crypto">Crypto</th>
                         <th className='th-exchange'>Exchange</th>
-                        <th>Price</th>
+                        <th className='th-price'>Price</th>
                         <th className='th-startingprice'>Starting</th>
                         <th>Highest</th>
-                        <th>Age (min)</th>
-                        <th className='th-trailingsl'>Trlng S.L. Offset</th>
-                        <th className='th-trailingsl'>Trlng S.L Price</th>
-                        <th>S.L Price</th>
-                        <th>Position</th>
+                        <th className='th-age'>Age (min)</th>
+                        <th className='th-trailingsl'>T.S.L Offset</th>
+                        <th className='th-trailingsl'>T.S.L Price</th>
+                        <th className='th-slprice'>S.L Price</th>
+                        <th className='th-pl'>P&#38;L</th>
                         <th className="th-crypto">Track</th>
+                        <th className='th-alert'>Alert</th>
                         <th className="th-icons"></th>
                         </tr>
                     </thead>

@@ -3,7 +3,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 //create router
 const router = express.Router();
-const fetch = require('node-fetch');
 
 //create scraper
 const scrape = require('./scrape');
@@ -17,55 +16,56 @@ const market = require('./models/model_market');
 const { exec } = require('child_process');
 
 const logger = require('./logger');
+const alert = require('./alert');
+
+let  monitorReponse = null;
 
 router.get('/favicon.ico', (req, res) => res.status(204));
 
-const sendPushOver = async (msg) => {
-    const url = 'https://api.pushover.net/1/messages.json';
-    const body = JSON.stringify({
-        "user": "u1fuqaj5nwabpgwpctjws2f1ax9ppq",
-        "token" : "av4g4ewiukc62sm24dyu5fvkta8grf",
-        "message" : msg
+
+const sendStopLossAlert = async (ticker, price, type) => {
+    await sendAlert('Stop Loss Price Hit For ' + ticker + ' at ' + price, type);
+}
+
+const sendTrailingStopLossAlert = async (ticker, price, type) => {
+    await sendAlert('Trailing Stop Loss Price Hit For ' + ticker + ' at ' + price, type);
+}
+
+const sendAlert = async(msg, type) => {
+    if(type=='Email')
+        await alert.sendEmail(msg);
+
+    if(type=='Push')
+        await alert.sendPushOver(msg);
+}
+
+const monitorResponse = () => {
+    if(monitorReponse) {
+        monitorReponse.write(`data: ${JSON.stringify({ date : Date.now() })}\n\n`);
+    }
+}
+
+router.get('/triggermonitor', async (req, res, next) => {
+    monitorResponse();
+    res.sendStatus(200);
+});
+
+router.get('/monitor', async (req, res, next) => {
+    // Mandatory headers and http status to keep connection open
+    const headers = {
+        'Content-Type': 'text/event-stream',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache'
+    };
+    res.writeHead(200, headers);
+
+    res.on('close', () => {
+        monitorReponse = null;
     });
 
-    return await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body:body
-    })
-    .catch(err => logger.logError(err));
+    monitorReponse = res;
+})
 
-}
-
-const sendEmail = (msg) => {
-    return new Promise(function(resolve, reject) {
-        exec('echo "' + msg + '" | mail -s "' + msg + '" wtctstockalerts@gmail.com', (err, stdout, stderr) => {
-            
-            if (err) {
-                console.logError(err)
-                reject(err);
-            } 
-            else {
-                resolve();
-            }                
-        });
-    });
-}
-
-const sendStopLossAlert = async (ticker, price) => {
-    const msg = 'Stop Loss Price Hit For ' + ticker + ' at ' + price;
-    await sendEmail(msg);
-    await sendPushOver(msg);
-}
-
-const sendTrailingStopLossAlert = async (ticker, price) => {
-    const msg = 'Trailing Stop Loss Price Hit For ' + ticker + ' at ' + price;
-    await sendEmail(msg);
-    await sendPushOver(msg);
-}
 
 router.get('/status', (req, res, next) => {
     mongoose.connect('mongodb+srv://' + config.db_config.user + ':' + config.db_config.pass + '@' + config.db_config.cluster + '/' + config.db_config.db + '?retryWrites=true&w=majority', { useNewUrlParser: true }, (err) => {
@@ -205,7 +205,6 @@ router.get('/reload', (req, res, next) => {
                 });
 
                 t.highestprice = Math.max(t.highestprice, price);
-                t.highestprice = price;
                 t.save();
 
                 if(t.track) {
@@ -217,7 +216,7 @@ router.get('/reload', (req, res, next) => {
                         logger.log('trailing stop loss : ' + trailing_price);
 
                         if((t.startingprice === null || trailing_price > t.startingprice) && price <= trailing_price ) {
-                            sendTrailingStopLossAlert(t.ticker, price);
+                            sendTrailingStopLossAlert(t.ticker, price, t.alerttype);
                             t.track = false;
                         }
                     }
@@ -227,7 +226,7 @@ router.get('/reload', (req, res, next) => {
                         logger.log('stop loss : ' + t.sl_price);
 
                         if(price <= t.sl_price) {
-                            sendStopLossAlert(t.ticker, price)
+                            sendStopLossAlert(t.ticker, price, t.alerttype)
                             t.track = false;
                         }
                     }
@@ -239,6 +238,8 @@ router.get('/reload', (req, res, next) => {
                 
                 
             }
+            
+            monitorResponse();
             res.sendStatus(200);
 
         }) .catch(err => {

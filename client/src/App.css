@@ -10,9 +10,92 @@ body {
     background-image: url('background.jpg');
 }
 
+/*Table*/
+table {
+    background-color:white !important;
+    table-layout:fixed;
+    border: 2px solid #7AC1F7 !important;;
+    border-collapse: collapse;
+} 
 table tr, table th {
     text-align: center;
+    font-size: 14px;
 }
+table th {
+    background-color: #C3E0F4;
+}
+table td span {
+    margin-left:5px;
+    margin-right:5px;
+}
+.table-bordered th, .table-bordered td {
+    border: none !important;
+}
+.table tr td {
+    padding: 1.0rem !important;
+    vertical-align: middle;
+}
+.table-content {
+    min-width: 1716px;
+}
+
+/*auto*/
+
+.th-age {
+    width: 86px;
+}
+.th-icons {
+    width:180px;
+}
+.th-pl {
+    width:152px;
+}
+.th-price {
+    width:130px;
+}
+
+/*editable*/
+.th-exchange {
+    width:120px;
+}
+.th-crypto {
+    width: 75px;
+}
+.th-track {
+    width:150px;
+}
+.th-ticker {
+    width: 120px;
+}
+.th-startingprice {
+    width:130px;
+}
+.th-trailingsl {
+    width:130px;
+}
+.th-slprice {
+    width:130px;
+}
+.th-alert {
+    width:100px;
+}
+.tr-tracked {
+    background-color:lightgreen !important;
+}
+.tr-tracked .td-readonly {
+    background-color:lightgreen !important;
+}
+
+.td-readonly {
+    background-color: #ECECEC;
+}
+
+
+
+
+
+
+
 
 header h1 {
     text-transform: lowercase;
@@ -22,12 +105,6 @@ header h2 {
     font-size:18px;
 }
 
-
-table {
-    background-color:white !important;
-    table-layout:fixed;
-} 
-
 header .navbar-brand:before {
     content: url(watch.png);
     height: 47px;
@@ -36,19 +113,11 @@ header .navbar-brand:before {
     vertical-align: text-bottom;
   }
 
-td span {
-    margin-left:5px;
-    margin-right:5px;
-}
+  .arrows {
+      padding-left: 5px;
+      display: inline;
+  }
 
-table {
-    border: 2px solid #7AC1F7 !important;;
-    border-collapse: collapse;
-}
-
-.table-content {
-    min-width: 1716px;
-}
 
 .graphimg {
     height: 214px; 
@@ -57,24 +126,6 @@ table {
     background-size: contain;
     border: 4px solid #ECECEC;
     width:1060px;
-}
-table th {
-    background-color: #C3E0F4;
-    font-size: 14px;
-}
-
-table tr {
-    font-size: 14px;
-}
-
-.table-bordered th, .table-bordered td {
-    border: none !important;
-
-}
-
-.table tr td {
-    padding: 1.0rem !important;
-    vertical-align: middle;
 }
 
 .app-jumbo {
@@ -94,6 +145,14 @@ table tr {
     text-align:left;
 }
 
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+   -webkit-appearance: none;
+   margin: 0;
+}
+input[type="number"] {
+   -moz-appearance: textfield;
+}
 
 .deletebuttons {
     float:right;
@@ -106,38 +165,16 @@ table tr {
 .addbutton button {
     margin-right:10px;
 }
+.pos{
+    color: green;
+ }
 
-.th-ticker {
-    width: 150px;
-}
-.th-exchange {
-    width:150px;
-}
-.th-crypto {
-    width: 75px;
-}
-.th-track {
-    width:150px;
-}
-.th-icons {
-    width:180px;
-}
-.th-startingprice {
-    width:150px;
-}
-.th-trailingsl {
-    width:150px;
+.neg{
+   color: red;
 }
 
-.tr-tracked {
-    background-color:lightgreen !important;
+.disabled-text {
+    color:gray;
 }
 
-.tr-tracked .td-readonly {
-    background-color:lightgreen !important;
-}
-
-.td-readonly {
-    background-color: #ECECEC;
-}
 

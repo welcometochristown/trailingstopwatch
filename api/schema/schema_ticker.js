@@ -6,7 +6,8 @@ const schema = {
     "trlng_sl_offset" : Number,
     "highestprice" : Number,
     "startingprice" : Number,
-    "track": Boolean
+    "track": Boolean,
+    "alerttype": String
 }
 
 module.exports = schema;

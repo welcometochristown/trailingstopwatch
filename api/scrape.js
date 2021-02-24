@@ -1,5 +1,5 @@
-const puppeteer = require('puppeteer');
 const logger = require('./logger');
+const fetch = require('node-fetch');
 
 async function getTickerPrice(ticker) {
     var prices = await getTickerPrices([ticker]);
@@ -10,93 +10,57 @@ async function getTickerPrice(ticker) {
     return prices[0];
 }
 
-//slower but real time
-async function scrapeTMXMoneyPrice(page, ticker, isCrypto, exchange, timeout=15000) {
-
-    if(isCrypto)
-        return null;
-
-    const url = 'https://money.tmx.com/en/quote/' + ticker;
-
-    logger.logInfo(url);
-    const promise = page.goto(url, {timeout:timeout});
-
-    logger.log('waiting for response');
-    const resp = await page.waitForResponse((response) =>   response.request().url() == 'https://app-money.tmx.com/graphql' && 
-                                                            response.request().method() == 'POST' &&
-                                                            JSON.parse(response.request()._postData).operationName == "getQuoteBySymbol");
-
-    logger.log('navigating to page');
-    await promise;
-
-    logger.log('getting content');
-    const txt = await resp.text();
+async function scrapeTMXMoneyPrice(ticker) {
+    const url =  'https://app-money.tmx.com/graphql';
+    const body = {
+        operationName: "getQuoteBySymbol",
+        variables: {
+            symbol: ticker,
+            locale: "en"
+        },
+        query: "query getQuoteBySymbol($symbol: String, $locale: String) {  getQuoteBySymbol(symbol: $symbol, locale: $locale) {symbol name price}}"
+    }
     
-    logger.log(txt);
-    const obj = JSON.parse(txt);
-    const price = obj.data.getQuoteBySymbol.price;
+    const reponse = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36'
+        },
+        body: JSON.stringify(body)
+    })
+    .then(resp => resp.json())
+    .catch(err => logger.logError(err));
 
-    return price;
+    logger.log(reponse);
+    return Number(reponse.data.getQuoteBySymbol.price);
 }
 
-//fast but delayed
-async function scrapeGooglePrice(page, ticker, isCrypto, exchange, timeout=5000) {
-    const url = 'https://www.google.com/finance/quote/' + ticker + (isCrypto ? '-' : ':') + exchange;
-    logger.log(url);
+//this only works for a small set of tickers that bit buy supports
+async function scrapeBitBuyProPrice(ticker, exchange) {
+    const url =  'https://bitbuy.ca/api/public/market-list?_=1613971614995';
+    const reponse= await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36'
+        }
+    })
+    .then(resp => resp.json())
+    .catch(err => logger.logError(err));
 
-    await page.goto(url, {waitUntil: 'load'});
-    await page.waitForSelector('.YMlKec.fxKbKc', { timeout : timeout });
-
-    var element = await page.$('.YMlKec.fxKbKc');
-    var price = (await page.evaluate(el => el.innerText, element));
-    
-    return price.replace(/[^0-9.]/g, '');
+    logger.log(reponse);
+    return Number(reponse[ticker+'-'+exchange].last);
 }
 
 async function getTickerPrices(tickers) {
-    logger.log("starting scrape");
+    logger.log("starting scrapes");
     logger.log(tickers);
-
-    // Launch the browser
-    const browser = await puppeteer.launch({
-        executablePath: "/usr/bin/chromium-browser",
-        args:[
-            '--no-sandbox'
-        ]
-    });
-
+    
     try
     {
-        logger.log('opening new browser page');
-        // Create an instance of the page
-        const page = await browser.newPage();
-
-        logger.log('setting request interception');
-        await page.setRequestInterception(true);
-
-        logger.log('adding response interceptor');
-        page.on('response', async(response) => {
-            logger.log('--> Reponse From ' + response.request().url() + ' (' + response.request().method() + ')');
-        });
-
-        logger.log('adding request interceptor');
-        page.on('request', async(request) => {
-            if(request.resourceType() == 'stylesheet' || request.resourceType() == 'font' || request.resourceType() == 'image'){
-                request.abort();
-            }
-            else if(!request.url().includes('money.tmx.com') && !request.url().includes('app.tmx.com')){
-                request.abort();
-            }
-            else if(request.url().includes('area.chart.def.json')) {
-                request.abort();
-            }
-            else {
-                //logger.log(request.url());
-                request.continue();
-            }
-            
-        });
-
         var prices = []
 
         logger.log('iterating over tickers');
@@ -104,6 +68,8 @@ async function getTickerPrices(tickers) {
 
             if(tickers[i] === undefined)   
                 continue;
+
+            logger.logInfo('scraping for ' + tickers[i].ticker);
 
             const ticker = tickers[i].ticker;
             const exchange = tickers[i].exchange;
@@ -116,8 +82,14 @@ async function getTickerPrices(tickers) {
             };
 
             try {
-                p.price = await scrapeTMXMoneyPrice(page, ticker, isCrypto, exchange);
-            } catch (err) {
+                if(isCrypto) {
+                    p.price = await scrapeBitBuyProPrice(ticker, exchange);
+                } 
+                else {
+                    p.price = await scrapeTMXMoneyPrice(ticker, exchange);
+                }
+            } 
+            catch (err) {
                 //ignore for now, probably a bad ticker
                 logger.logError(err);
             }
@@ -127,10 +99,6 @@ async function getTickerPrices(tickers) {
     }
     catch(err) {
         logger.logError(err);
-    }
-    finally {
-        logger.log('closing browser');
-        await browser.close();
     }
 
     logger.logInfo(prices);
