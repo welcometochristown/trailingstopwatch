@@ -1,11 +1,29 @@
 {
+<<<<<<< HEAD
   "short_name": "Trailing Stopwatch",
   "name": "Trailing Stopwatch",
+=======
+  "short_name": "React App",
+  "name": "Create React App Sample",
+>>>>>>> 23f90f7ade73d7c7988d5f397c058de6096ae370
   "icons": [
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
+<<<<<<< HEAD
+=======
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+>>>>>>> 23f90f7ade73d7c7988d5f397c058de6096ae370
     }
   ],
   "start_url": ".",

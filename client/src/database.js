@@ -9,6 +9,7 @@ export class database  {
             body:body
         });
 
+<<<<<<< HEAD
         try
         {
             return await fetch(url, {
@@ -34,6 +35,13 @@ export class database  {
         .then(res => res.status);
 
 
+=======
+        return await fetch(url, {
+            method: action,
+            headers: headers,
+            body:body
+        });
+>>>>>>> 23f90f7ade73d7c7988d5f397c058de6096ae370
     }
 
     static async load() {
@@ -48,6 +56,7 @@ export class database  {
 
     }
 
+<<<<<<< HEAD
     static async delete(id) {
 
         const url = 'http://' + window.location.hostname + ':7000/' + id;
@@ -127,11 +136,34 @@ export class database  {
         const url = 'http://' + window.location.hostname + ':7000/';
 
         return await database.action(url, 'POST', {
+=======
+    static async get(ticker) {
+            
+        const url = 'http://' + window.location.hostname + ':7000/' + ticker;
+
+        return await database.action(url, 'GET', {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+        })
+        .then(res => res.json())
+
+    }
+
+    static async save(obj) {
+        const url = 'http://' + window.location.hostname + ':7000/';
+
+        await database.action(url, 'POST', {
+>>>>>>> 23f90f7ade73d7c7988d5f397c058de6096ae370
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
             JSON.stringify(obj)
+<<<<<<< HEAD
         ).then(res => res.json());
     }
 
+=======
+        );
+    }
+>>>>>>> 23f90f7ade73d7c7988d5f397c058de6096ae370
 }
