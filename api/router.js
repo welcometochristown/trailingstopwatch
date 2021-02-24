@@ -271,7 +271,6 @@ router.get('/', async(req, res, next) => {
     })  
 });
 
-<<<<<<< HEAD
 router.post('/realtimeprice', jsonParser, async(req, res, next) => {
     
     try {
@@ -393,32 +392,4 @@ router.delete('/:id', async(req, res, next) => {
 
 
 
-=======
-router.get('/:ticker', async(req, res, next) => {
-    const ticker = req.params.ticker;
-    const result = await scrape.getTickerPrice(ticker);
-    res.status(200).json(result);
-});
-
-router.post('/', jsonParser, (req, res, next) => {
-    mongoose.connect('mongodb+srv://' + config.db_config.user + ':' + config.db_config.pass + '@' + config.db_config.cluster + '/' + config.db_config.db + '?retryWrites=true&w=majority', { useNewUrlParser: true, useFindAndModify: false }, (err) => {
-
-        if (err)
-            throw err;
-
-        req.body.forEach(function(e){
-            ticker.findOneAndUpdate(
-                {ticker: e.ticker}, e, { upsert: true, returnNewDocument:true, new: true }
-             )
-             .catch(err => {
-                 console.log(err.message);
-                 res.sendStatus(400);
-             })
-          });
-
-        res.status(200)
-        
-    })  
-});
->>>>>>> 23f90f7ade73d7c7988d5f397c058de6096ae370
 module.exports = router;
