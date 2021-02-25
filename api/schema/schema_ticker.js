@@ -7,7 +7,8 @@ const schema = {
     "highestprice" : Number,
     "startingprice" : Number,
     "track": Boolean,
-    "alerttype": String
+    "alerttype": String,
+    "alertprice" : Number
 }
 
 module.exports = schema;

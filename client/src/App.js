@@ -4,12 +4,14 @@ import { FormControl, Button,  Table, Jumbotron } from 'react-bootstrap';
 import { useState, useEffect } from 'react';
 import { database } from './database';
 import Select from 'react-select';
+import Alert from './Alert';
 
 function App() {
 
     const [editingCopy, setEditingCopy] = useState(null);
     const [isReloading, setIsReloading] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [alertBoxState, setAlertBoxState] = useState(null);
 
     const [rows, setRows] = useState({
       needsSaving : false,
@@ -43,7 +45,8 @@ function App() {
     }, [rows.needsSaving]);
 
     const blankTicker = () => ({ ticker: null, exchange: null, isCrypto:false, price: null, startingprice:null, 
-                                    highestprice: null, timestamp:null, sl_price: null, trlng_sl_offset: null, track:false, initialising:true, alerttype:null });
+                                    highestprice: null, timestamp:null, sl_price: null, trlng_sl_offset: null, 
+                                    track:false, initialising:true, alerttype:null, alertprice:null});
 
     const load = async () => {
         assignRowsAsync(async(r) =>
@@ -320,6 +323,15 @@ function App() {
        return  diff_minutes(new Date(r.timestamp), new Date());
     }
 
+    const handleShowAlertBox = (i) => {
+        console.log(rows);
+        console.log(i);
+        setAlertBoxState({
+            row:i,
+            price:rows.items[i].alertprice
+        })
+    }
+
     const stock_exchanges = [{label:"TSE", value:"TSE"}, {label:"CVE", value:"CVE"}];
     const crypto_currencies = [{label:"CAD", value:"CAD"}, {label:"BTC", value:"BTC"}];
     
@@ -330,7 +342,7 @@ function App() {
 
         if(editingCopy && editingCopy.index == i) {
             return (
-                (<tr key={i}>
+                (<tr key={i} className="tr-editing">
                     <td>
                         <FormControl
                             placeholder="ticker"
@@ -352,7 +364,7 @@ function App() {
                             onChange={(event) => handleExchangeChange(event, i)}
                         />
                     </td>   
-                   
+                   <td></td>
 
                     <td className="td-readonly">                      
                         <FormControl
@@ -459,10 +471,20 @@ function App() {
         }
         else {
             return (
-                (<tr key={i} className={r.track?'tr-tracked':''}>
+                (<tr key={i} className={r.track?'tr-tracked tr-viewing':'tr-viewing'}>
                     <td><span><b>{format(r.ticker).toUpperCase()}</b></span></td>     
                     <td><span><i className={r.isCrypto ? "fa fa-check-square-o fa-lg" : "fa fa-square-o fa-lg"} aria-hidden="true"></i> </span></td>     
                     <td><span>{format(r.exchange).toUpperCase()}</span></td>     
+                    <td>
+                        <table className="alerttable">
+                            <tr><td colspan="12">
+                                <a href='#' onClick={() => handleShowAlertBox(i)}><i className={!r.alertprice ?  "fa fa-bell-o" : "fa fa-bell"} aria-hidden="true"></i> </a>                           
+                            </td></tr>
+                            <tr><td>
+                                <span className="alert-text">{r.alertprice || '-'}</span>
+                            </td></tr>
+                        </table>
+                    </td>
                     <td className="td-readonly"><span><b>{formatN(r.price, '$') || ''}</b></span></td>
                     <td><span>{formatN(r.startingprice, '$') || ''}</span></td>
                     <td className="td-readonly"><span>{formatN(r.highestprice, '$') || ''}</span></td>
@@ -528,8 +550,26 @@ function App() {
         return spinning ? (<i className="fa fa-spinner fa-spin"/>) : (<div>{text}</div>)
     }
 
+    const hideAlertBox = () => {
+        setAlertBoxState(null);
+    }
+    const handleAlertCancel = () => hideAlertBox();
+    const handleAlertSave = (price) => {
+        updateRows(r => {
+            r[alertBoxState.row].alertprice = price;
+        }, true);
+        hideAlertBox();
+    }
+    const handleAlertRemove = () => {
+        updateRows(r => {
+            r[alertBoxState.row].alertprice = null;
+        }, true);
+        hideAlertBox();
+    }
+
     return (
         <div className="App">
+            <Alert visible={alertBoxState!==null} price={alertBoxState?.price} onCancel={handleAlertCancel} onSave={handleAlertSave} onRemove={handleAlertRemove}/>
             <Jumbotron className="app-jumbo">
             <header>
                 <h1 className="navbar-brand">Trailing StopWatch</h1>
@@ -545,22 +585,23 @@ function App() {
             </Jumbotron>
 
             <div className="table-content">
-                <Table bordered hover>
+                <Table bordered className="maintable">
                     <thead>
                         <tr>
                         <th className="th-ticker">Ticker</th>
                         <th className="th-crypto">Crypto</th>
                         <th className='th-exchange'>Exchange</th>
+                        <th className='th-alert'>Alert</th>
                         <th className='th-price'>Price</th>
                         <th className='th-startingprice'>Starting</th>
-                        <th>Highest</th>
+                        <th className='th-highest'>Highest</th>
                         <th className='th-age'>Age (min)</th>
                         <th className='th-trailingsl'>T.S.L Offset</th>
                         <th className='th-trailingsl'>T.S.L Price</th>
                         <th className='th-slprice'>S.L Price</th>
                         <th className='th-pl'>P&#38;L</th>
                         <th className="th-crypto">Track</th>
-                        <th className='th-alert'>Alert</th>
+                        <th className='th-notify'>Notify</th>
                         <th className="th-icons"></th>
                         </tr>
                     </thead>

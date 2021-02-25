@@ -31,6 +31,10 @@ const sendTrailingStopLossAlert = async (ticker, price, type) => {
     await sendAlert('Trailing Stop Loss Price Hit For ' + ticker + ' at ' + price, type);
 }
 
+const sendPriceAlert = async (ticker, price, type) => {
+    await sendAlert('Price Hit For ' + ticker + ' at ' + price, type);
+}
+
 const sendAlert = async(msg, type) => {
     if(type=='Email')
         await alert.sendEmail(msg);
@@ -184,6 +188,7 @@ router.get('/reload', (req, res, next) => {
                 }
                 
                 const price = pResult[0].price;
+                let previousprice = null;
 
                 market.findOne({ticker : t.ticker, exchange: t.exchange, isCrypto:t.isCrypto}, (err, item) =>
                 {
@@ -197,7 +202,10 @@ router.get('/reload', (req, res, next) => {
                         item.ticker = t.ticker;
                         item.exchange = t.exchange;
                         item.isCrypto = t.isCrypto;
-                    }           
+                    }   
+                    else {
+                        previousprice= item.price;
+                    }        
                     
                     item.timestamp = new Date().toISOString();
                     item.price = price;
@@ -205,7 +213,6 @@ router.get('/reload', (req, res, next) => {
                 });
 
                 t.highestprice = Math.max(t.highestprice, price);
-                t.save();
 
                 if(t.track) {
                     logger.log('tracked..');
@@ -231,12 +238,18 @@ router.get('/reload', (req, res, next) => {
                         }
                     }
 
-                    if(!t.track) {
-                        t.save();
+                    if(t.alertprice !== null) {
+                        let sendAlert = (t.alertprice == price) || 
+                                        (previousprice !== null && (t.alertprice >= price && t.alertprice < previousprice) || (t.alertprice <= price && t.alertprice > previousprice))
+                                    
+                        if(sendAlert) {
+                            sendPriceAlert(t.ticker, price, t.alerttype);
+                            t.alertprice = null;
+                        }
                     }
                 } 
-                
-                
+
+                t.save();
             }
             
             monitorResponse();

@@ -8,35 +8,49 @@
 
 body {
     background-image: url('background.jpg');
+    background-repeat: no-repeat;
 }
 
 /*Table*/
-table {
+table.maintable {
     background-color:white !important;
     table-layout:fixed;
     border: 2px solid #7AC1F7 !important;;
     border-collapse: collapse;
+    padding:5px;
 } 
-table tr, table th {
+table.maintable tr, table.maintable th {
     text-align: center;
     font-size: 14px;
 }
-table th {
+table.maintable th {
     background-color: #C3E0F4;
 }
-table td span {
+table.maintable tr td {
+    vertical-align: middle;
+}
+table.maintable td span {
     margin-left:5px;
     margin-right:5px;
+}
+
+table.maintable tr.tr-editing td{
+    padding: 8px !important;
+}
+table.maintable tr.tr-viewing td{
+    padding: 2px !important;
+}
+
+.table-content.maintable {
+    min-width: 1716px;
 }
 .table-bordered th, .table-bordered td {
     border: none !important;
 }
-.table tr td {
-    padding: 1.0rem !important;
-    vertical-align: middle;
-}
-.table-content {
-    min-width: 1716px;
+
+table.alerttable {
+    display: table;
+    width: 100%;
 }
 
 /*auto*/
@@ -67,6 +81,9 @@ table td span {
 .th-ticker {
     width: 120px;
 }
+.th-highest {
+    width: 120px;
+}
 .th-startingprice {
     width:130px;
 }
@@ -76,8 +93,18 @@ table td span {
 .th-slprice {
     width:130px;
 }
-.th-alert {
+.th-notify {
     width:100px;
+}
+.th-alert {
+    width:60px;
+}
+.th-alert-icon {
+    width:50px;
+    text-align:left;
+}
+.alert-text {
+    font-size:12px;
 }
 .tr-tracked {
     background-color:lightgreen !important;
@@ -85,15 +112,14 @@ table td span {
 .tr-tracked .td-readonly {
     background-color:lightgreen !important;
 }
+.center {
+    text-align:center;
+    justify-content: center !important;
+}
 
 .td-readonly {
     background-color: #ECECEC;
 }
-
-
-
-
-
 
 
 
@@ -113,10 +139,10 @@ header .navbar-brand:before {
     vertical-align: text-bottom;
   }
 
-  .arrows {
-      padding-left: 5px;
-      display: inline;
-  }
+.arrows {
+    padding-left: 5px;
+    display: inline;
+}
 
 
 .graphimg {
